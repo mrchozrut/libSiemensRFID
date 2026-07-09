@@ -1,0 +1,37 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.37411.7
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Adient.Automation.Lucenec.RFID.SiemensRF600", "Adient.Automation.Lucenec.RFID.SiemensRF600.csproj", "{3D4B1336-90B0-48EF-A41D-F4AC1F5AA9C7}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Adient.Automation.Lucenec.RFID.SiemensRF600.Tests", "..\Adient.Automation.Lucenec.RFID.SiemensRF600.Tests\Adient.Automation.Lucenec.RFID.SiemensRF600.Tests.csproj", "{402FC2E9-D2B5-48A8-8B77-10E8B1506E84}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Adient.Automation.Lucenec.RFID.SiemensRF600.Console", "..\Adient.Automation.Lucenec.RFID.SiemensRF600.Console\Adient.Automation.Lucenec.RFID.SiemensRF600.Console.csproj", "{D618AEB1-728C-4303-BBCA-E04E778E606C}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{3D4B1336-90B0-48EF-A41D-F4AC1F5AA9C7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3D4B1336-90B0-48EF-A41D-F4AC1F5AA9C7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3D4B1336-90B0-48EF-A41D-F4AC1F5AA9C7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3D4B1336-90B0-48EF-A41D-F4AC1F5AA9C7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{402FC2E9-D2B5-48A8-8B77-10E8B1506E84}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{402FC2E9-D2B5-48A8-8B77-10E8B1506E84}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{402FC2E9-D2B5-48A8-8B77-10E8B1506E84}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{402FC2E9-D2B5-48A8-8B77-10E8B1506E84}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D618AEB1-728C-4303-BBCA-E04E778E606C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D618AEB1-728C-4303-BBCA-E04E778E606C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D618AEB1-728C-4303-BBCA-E04E778E606C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D618AEB1-728C-4303-BBCA-E04E778E606C}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {45676B16-D078-489C-AE47-1AFE1556CB77}
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
+  <metadata>
+    <id>Adient.Automation.Lucenec.RFID.SiemensRF600</id>
+    <version>1.0.0</version>
+    <authors>Adient Lucenec OT</authors>
+    <description>Siemens RF600/RF680R RFID library for .NET 8</description>
+    <repository type="git" commit="4bf11a2a36b89d7ea082ef51e64e53e7e3549e83" />
+    <dependencies>
+      <group targetFramework="net8.0">
+        <dependency id="Microsoft.Extensions.DependencyInjection" version="10.0.9" exclude="Build,Analyzers" />
+        <dependency id="Microsoft.Extensions.DependencyInjection.Abstractions" version="10.0.9" exclude="Build,Analyzers" />
+        <dependency id="Microsoft.Extensions.Hosting.Abstractions" version="10.0.9" exclude="Build,Analyzers" />
+        <dependency id="Microsoft.Extensions.Logging" version="10.0.9" exclude="Build,Analyzers" />
+        <dependency id="Microsoft.Extensions.Logging.Abstractions" version="10.0.9" exclude="Build,Analyzers" />
+        <dependency id="Microsoft.Extensions.Logging.Console" version="10.0.9" exclude="Build,Analyzers" />
+      </group>
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="C:\Users\akrnanv\OneDrive - Adient\Documents\GitHub\libSiemensRFID\Adient.Automation.Lucenec.RFID.SiemensRF600\bin\Release\net8.0\Adient.Automation.Lucenec.RFID.SiemensRF600.dll" target="lib\net8.0\Adient.Automation.Lucenec.RFID.SiemensRF600.dll" />
+  </files>
+</package>
