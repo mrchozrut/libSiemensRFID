@@ -1,126 +1,223 @@
-# Azure DevOps Pipeline for building and publishing Siemens RFID library
-# This pipeline builds the solution, runs tests, and publishes NuGet packages to Azure Artifacts
+    # Azure DevOps Pipeline for building and publishing Siemens RFID library
+    # This pipeline builds the solution and publishes NuGet packages to Azure Artifacts
+    # Note: Tests are skipped as the library requires physical RFID hardware for testing
 
-trigger:
-  branches:
-    include:
-      - main
-      - develop
-  paths:
-    exclude:
-      - README.md
-      - docs/*
+    # PUBLISH CONFIGURATION:
+    # - Publish stage only runs on 'main' branch (line 97)
+    # - To publish to Azure Artifacts feed, ensure:
+    #   1. Feed exists: Lucenec_0798_OT/Automation ?
+    #   2. Build service has 'Contributor' permissions on the feed
+    #   3. 'Production' environment is created in Environments
+    # - Feed URL: https://adient.visualstudio.com/Lucenec_0798_OT/_artifacts/feed/Automation
 
-pr:
-  branches:
-    include:
-      - main
-      - develop
+    trigger:
+      branches:
+        include:
+          - main
+          - develop
+      paths:
+        exclude:
+          - README.md
+          - docs/*
 
-pool:
-  vmImage: 'windows-latest'
+    pr:
+      branches:
+        include:
+          - main
+          - develop
 
-variables:
-  solution: 'Adient.Automation.Lucenec.RFID.SiemensRF600/Adient.Automation.Lucenec.RFID.SiemensRF600.sln'
-  buildPlatform: 'Any CPU'
-  buildConfiguration: 'Release'
-  majorVersion: '1'
-  minorVersion: '0'
-  patchVersion: $[counter(format('{0}.{1}', variables['majorVersion'], variables['minorVersion']), 0)]
-  nugetVersion: '$(majorVersion).$(minorVersion).$(patchVersion)'
+    pool:
+      vmImage: 'windows-latest'
 
-stages:
-- stage: Build
-  displayName: 'Build and Test'
-  jobs:
-  - job: BuildJob
-    displayName: 'Build Solution'
-    steps:
+    variables:
+        solution: 'Adient.Automation.Lucenec.RFID.SiemensRF600/Adient.Automation.Lucenec.RFID.SiemensRF600.sln'
+        buildPlatform: 'Any CPU'
+        buildConfiguration: 'Release'
+        majorVersion: '1'
+        minorVersion: '0'
+        patchVersion: $[counter(format('{0}.{1}', variables['majorVersion'], variables['minorVersion']), 0)]
+        buildNumber: $[format('{0}.{1}.{2}', variables['majorVersion'], variables['minorVersion'], variables['patchVersion'])]
+        nugetVersion: '$(buildNumber)'
 
-    - task: UseDotNet@2
-      displayName: 'Install .NET 8 SDK'
-      inputs:
-        packageType: 'sdk'
-        version: '8.x'
-        installationPath: $(Agent.ToolsDirectory)/dotnet
+    stages:
+    - stage: Build
+      displayName: 'Build and Package'
+      jobs:
+      - job: BuildJob
+        displayName: 'Build Solution'
+        steps:
 
-    - task: NuGetToolInstaller@1
-      displayName: 'Install NuGet'
-      inputs:
-        versionSpec: '6.x'
+        - task: Cache@2
+          displayName: 'Cache NuGet packages'
+          inputs:
+            key: 'nuget | "$(Agent.OS)" | Adient.Automation.Lucenec.RFID.SiemensRF600/packages.lock.json'
+            restoreKeys: |
+              nuget | "$(Agent.OS)"
+            path: '$(UserProfile)\.nuget\packages'
+            cacheHitVar: CACHE_RESTORED
 
-    - task: DotNetCoreCLI@2
-      displayName: 'Restore NuGet packages'
-      inputs:
-        command: 'restore'
-        projects: '$(solution)'
-        feedsToUse: 'config'
-        nugetConfigPath: 'NuGet.config'
+        - task: DotNetCoreCLI@2
+          displayName: 'Restore NuGet packages'
+          inputs:
+            command: 'restore'
+            projects: 'Adient.Automation.Lucenec.RFID.SiemensRF600/Adient.Automation.Lucenec.RFID.SiemensRF600.csproj'
+            feedsToUse: 'config'
+            nugetConfigPath: 'NuGet.config'
+            restoreArguments: '--locked-mode'
+          condition: ne(variables.CACHE_RESTORED, 'true')
 
-    - task: DotNetCoreCLI@2
-      displayName: 'Build Solution'
-      inputs:
-        command: 'build'
-        projects: '$(solution)'
-        arguments: '--configuration $(buildConfiguration) --no-restore /p:Version=$(nugetVersion)'
+        - task: DotNetCoreCLI@2
+          displayName: 'Build Library Project (always runs)'
+          inputs:
+            command: 'build'
+            projects: 'Adient.Automation.Lucenec.RFID.SiemensRF600/Adient.Automation.Lucenec.RFID.SiemensRF600.csproj'
+            arguments: '--configuration $(buildConfiguration) /p:Version=$(nugetVersion)'
 
-    - task: DotNetCoreCLI@2
-      displayName: 'Run Unit Tests'
-      inputs:
-        command: 'test'
-        projects: '**/*Tests/*.csproj'
-        arguments: '--configuration $(buildConfiguration) --no-build --collect:"XPlat Code Coverage" --logger trx'
-        publishTestResults: true
+        - script: |
+            echo "============================================"
+            echo "         BUILD OUTPUT VERIFICATION          "
+            echo "============================================"
+            echo ""
+            echo "Cache Status: $(CACHE_RESTORED)"
+            echo "Agent: $(Agent.MachineName)"
+            echo "OS: $(Agent.OS)"
+            echo ""
+            echo "Checking build output directory..."
+            echo "Expected location: D:\a\1\s\Adient.Automation.Lucenec.RFID.SiemensRF600\bin\$(buildConfiguration)\net8.0\"
+            echo ""
+            if exist "D:\a\1\s\Adient.Automation.Lucenec.RFID.SiemensRF600\bin\$(buildConfiguration)\net8.0\Adient.Automation.Lucenec.RFID.SiemensRF600.dll" (
+              echo [SUCCESS] Main DLL found!
+              dir "D:\a\1\s\Adient.Automation.Lucenec.RFID.SiemensRF600\bin\$(buildConfiguration)\net8.0" /b
+            ) else (
+              echo [ERROR] Main DLL NOT found!
+              echo "Searching for any bin directories..."
+              dir "D:\a\1\s\Adient.Automation.Lucenec.RFID.SiemensRF600\bin" /s /b
+            )
+            echo ""
+            echo "============================================"
+          displayName: 'Verify Build Output'
+          condition: succeededOrFailed()
 
-    - task: PublishCodeCoverageResults@2
-      displayName: 'Publish Code Coverage'
-      inputs:
-        codeCoverageTool: 'Cobertura'
-        summaryFileLocation: '$(Agent.TempDirectory)/**/*coverage.cobertura.xml'
+        - task: DotNetCoreCLI@2
+          displayName: 'Pack NuGet Package (always runs)'
+          inputs:
+            command: 'pack'
+            packagesToPack: 'Adient.Automation.Lucenec.RFID.SiemensRF600/Adient.Automation.Lucenec.RFID.SiemensRF600.csproj'
+            configuration: '$(buildConfiguration)'
+            nobuild: false
+            includesymbols: true
+            includesource: true
+            versioningScheme: 'byEnvVar'
+            versionEnvVar: 'nugetVersion'
+            packDirectory: '$(Build.ArtifactStagingDirectory)/packages'
+            verbosityPack: 'Detailed'
 
-    - task: DotNetCoreCLI@2
-      displayName: 'Pack NuGet Package'
-      inputs:
-        command: 'pack'
-        packagesToPack: '**/Adient.Automation.Lucenec.RFID.SiemensRF600.csproj'
-        configuration: '$(buildConfiguration)'
-        nobuild: true
-        versioningScheme: 'byEnvVar'
-        versionEnvVar: 'nugetVersion'
-        packDirectory: '$(Build.ArtifactStagingDirectory)/packages'
+        - script: |
+            echo "============================================"
+            echo "       NUGET PACKAGE CREATION SUMMARY       "
+            echo "============================================"
+            echo ""
+            echo "Package Version: $(nugetVersion)"
+            echo "Configuration: $(buildConfiguration)"
+            echo "Output Directory: $(Build.ArtifactStagingDirectory)\packages"
+            echo ""
+            echo "--- Directory Structure ---"
+            dir "$(Build.ArtifactStagingDirectory)" /s
+            echo ""
+            echo "--- Package Files Created ---"
+            if exist "$(Build.ArtifactStagingDirectory)\packages\*.nupkg" (
+              for %%F in ("$(Build.ArtifactStagingDirectory)\packages\*.nupkg") do (
+                echo [SUCCESS] Package: %%~nxF
+                echo           Size: %%~zF bytes
+                echo           Path: %%~fF
+                echo ""
+              )
+            ) else (
+              echo [ERROR] No .nupkg files found in $(Build.ArtifactStagingDirectory)\packages!
+              echo ""
+              echo "Checking if pack task ran correctly..."
+              echo "Expected output: Adient.Automation.Lucenec.RFID.SiemensRF600.$(nugetVersion).nupkg"
+              echo ""
+              echo "Possible causes:"
+              echo "  1. IsPackable=false in project file"
+              echo "  2. Pack task failed silently"
+              echo "  3. Incorrect packDirectory path"
+              echo ""
+              exit /b 1
+            )
+            echo ""
+            echo "--- Symbol Package Files ---"
+            if exist "$(Build.ArtifactStagingDirectory)\packages\*.snupkg" (
+              for %%F in ("$(Build.ArtifactStagingDirectory)\packages\*.snupkg") do (
+                echo [SUCCESS] Symbol Package: %%~nxF
+                echo           Size: %%~zF bytes
+                echo ""
+              )
+            ) else (
+              echo [INFO] No symbol packages found (this is normal if symbols are embedded)
+            )
+            echo ""
+            echo "============================================"
+          displayName: 'Verify Package Creation'
 
-    - task: PublishBuildArtifacts@1
-      displayName: 'Publish Build Artifacts'
-      inputs:
-        PathtoPublish: '$(Build.ArtifactStagingDirectory)'
-        ArtifactName: 'drop'
-        publishLocation: 'Container'
+        - task: PublishPipelineArtifact@1
+          displayName: 'Publish NuGet Package as Pipeline Artifact'
+          inputs:
+            targetPath: '$(Build.ArtifactStagingDirectory)/packages'
+            artifactName: 'packages'
+            publishLocation: 'pipeline'
 
-- stage: Publish
-  displayName: 'Publish to Azure Artifacts'
-  dependsOn: Build
-  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
-  jobs:
-  - deployment: PublishNuGet
-    displayName: 'Publish NuGet Package'
-    environment: 'Production'
-    strategy:
-      runOnce:
-        deploy:
-          steps:
-          - task: DownloadBuildArtifacts@1
-            displayName: 'Download Build Artifacts'
-            inputs:
-              buildType: 'current'
-              downloadType: 'single'
-              artifactName: 'drop'
-              downloadPath: '$(System.ArtifactsDirectory)'
+        - script: |
+            echo "============================================"
+            echo "   PIPELINE ARTIFACT PUBLISHING SUMMARY    "
+            echo "============================================"
+            echo ""
+            echo "Artifact Name: packages"
+            echo "Source Path: $(Build.ArtifactStagingDirectory)\packages"
+            echo ""
+            echo "Files being published as pipeline artifacts:"
+            dir "$(Build.ArtifactStagingDirectory)\packages" /b
+            echo ""
+            echo "============================================"
+          displayName: 'Artifact Publishing Summary'
+          condition: succeededOrFailed()
 
-          - task: NuGetCommand@2
-            displayName: 'Push NuGet Package to Azure Artifacts'
-            inputs:
-              command: 'push'
-              packagesToPush: '$(System.ArtifactsDirectory)/drop/packages/*.nupkg'
-              nuGetFeedType: 'internal'
-              publishVstsFeed: 'Lucenec_0798_OT/SiemensRFID'
-              allowPackageConflicts: false
+    - stage: Publish
+      displayName: 'Publish to Azure Artifacts'
+      dependsOn: Build
+      condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+      jobs:
+      - deployment: PublishNuGet
+        displayName: 'Publish NuGet Package'
+        environment: 'Production'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+              - task: DownloadPipelineArtifact@2
+                displayName: 'Download NuGet Package'
+                inputs:
+                  artifact: 'packages'
+                  path: '$(Pipeline.Workspace)/packages'
+
+              - script: |
+                  echo "=== Downloaded Artifacts ==="
+                  echo "Pipeline Workspace: $(Pipeline.Workspace)"
+                  dir "$(Pipeline.Workspace)\packages" /s
+                  echo "=== Preparing to push to feed ==="
+                  echo "Feed: Lucenec_0798_OT/Automation"
+                displayName: 'Display Download Information'
+
+              - task: NuGetCommand@2
+                displayName: 'Push NuGet Package to Azure Artifacts (excludes symbols)'
+                inputs:
+                  command: 'push'
+                  packagesToPush: '$(Pipeline.Workspace)/packages/**/*.nupkg;!$(Pipeline.Workspace)/packages/**/*.snupkg'
+                  nuGetFeedType: 'internal'
+                  publishVstsFeed: 'Lucenec_0798_OT/Automation'
+                  allowPackageConflicts: true
+
+              - script: |
+                  echo "=== Publish Complete ==="
+                  echo "Package published to: https://adient.visualstudio.com/Lucenec_0798_OT/_artifacts/feed/Automation"
+                displayName: 'Publish Summary'

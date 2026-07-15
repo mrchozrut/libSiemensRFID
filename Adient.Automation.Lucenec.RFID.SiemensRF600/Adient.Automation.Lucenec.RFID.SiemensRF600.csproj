@@ -1,9 +1,11 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
+	<TargetFramework>net8.0</TargetFramework>
+	<ImplicitUsings>enable</ImplicitUsings>
+	<Nullable>enable</Nullable>
+	<RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+	<IsPackable>true</IsPackable>
 
 	  <PackageId>Adient.Automation.Lucenec.RFID.SiemensRF600</PackageId>
 	  <Version>1.0.0</Version>
@@ -11,7 +13,7 @@
 	  <Description>
 		  Siemens RF600/RF680R RFID library for .NET 8
 	  </Description>
-	  <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+	  <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
 
   </PropertyGroup>
 
