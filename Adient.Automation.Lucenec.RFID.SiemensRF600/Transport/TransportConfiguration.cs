@@ -82,9 +82,23 @@ public record TransportConfiguration
     }
 }
 
+/// <summary>
+/// Defines the reconnection strategy when connection is lost
+/// </summary>
 public enum ReconnectionStrategy
 {
+    /// <summary>
+    /// No automatic reconnection - manual reconnection required
+    /// </summary>
     None,
+
+    /// <summary>
+    /// Automatic reconnection with exponential backoff
+    /// </summary>
     Automatic,
+
+    /// <summary>
+    /// Only manual reconnection is allowed
+    /// </summary>
     ManualOnly
 }

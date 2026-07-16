@@ -24,10 +24,26 @@ public class SiemensRf600Client : IDisposable, IAsyncDisposable
     private readonly List<CommandReply> _pendingReplies = new();
     private Task? _receiveTask;
 
+    /// <summary>
+    /// Gets a value indicating whether the client is currently connected to the RFID reader
+    /// </summary>
     public bool IsConnected => _isConnected;
+
+    /// <summary>
+    /// Gets or sets the default timeout for standard RFID operations
+    /// </summary>
     public TimeSpan DefaultTimeout { get; set; } = TimeSpan.FromSeconds(5);
+
+    /// <summary>
+    /// Gets or sets the timeout for long-running operations (e.g., configuration changes, firmware updates)
+    /// </summary>
     public TimeSpan LongTimeout { get; set; } = TimeSpan.FromSeconds(20);
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SiemensRf600Client"/> class
+    /// </summary>
+    /// <param name="ipAddress">IP address of the RFID reader</param>
+    /// <param name="port">TCP port number (default is 10001)</param>
     public SiemensRf600Client(string ipAddress, int port = 10001)
     {
         _ipAddress = ipAddress;
@@ -40,6 +56,12 @@ public class SiemensRf600Client : IDisposable, IAsyncDisposable
     /// <summary>
     /// Establish connection to the RFID reader
     /// </summary>
+    /// <param name="cancellationToken">Token to cancel the connection operation</param>
+    /// <returns>True if connected successfully, false otherwise</returns>
+    /// <remarks>
+    /// ? This method has been tested and validated with physical hardware.
+    /// The response parser is fully functional.
+    /// </remarks>
     public async Task<bool> ConnectAsync(CancellationToken cancellationToken = default)
     {
         if (_isConnected)
@@ -65,8 +87,13 @@ public class SiemensRf600Client : IDisposable, IAsyncDisposable
     }
 
     /// <summary>
-    /// Disconnect from the RFID reader
+    /// Disconnect from the RFID reader and clean up resources
     /// </summary>
+    /// <param name="cancellationToken">Token to cancel the disconnection operation</param>
+    /// <remarks>
+    /// ? This method has been tested and validated with physical hardware.
+    /// The response parser is fully functional.
+    /// </remarks>
     public async Task DisconnectAsync(CancellationToken cancellationToken = default)
     {
         if (!_isConnected)
@@ -88,8 +115,17 @@ public class SiemensRf600Client : IDisposable, IAsyncDisposable
     }
 
     /// <summary>
-    /// Send host greetings command (should be first command)
+    /// Send host greetings command (should be first command after connection)
     /// </summary>
+    /// <param name="readerType">Type of reader (e.g., "RF600", "RF680R")</param>
+    /// <param name="supportedVersions">Array of protocol versions supported by the host application</param>
+    /// <param name="readerMode">Operating mode (default is "Default")</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>Configuration ID and version information from the reader</returns>
+    /// <remarks>
+    /// ? This method has been tested and validated with physical hardware.
+    /// The response parser is fully functional and correctly extracts version and configuration ID.
+    /// </remarks>
     public async Task<RfConfigId> HostGreetingsAsync(string readerType, string[] supportedVersions, string readerMode = "Default", CancellationToken cancellationToken = default)
     {
         var parameters = new List<XmlParameter>
@@ -120,8 +156,14 @@ public class SiemensRf600Client : IDisposable, IAsyncDisposable
     }
 
     /// <summary>
-    /// Send host goodbye command (should be last command)
+    /// Send host goodbye command (should be last command before disconnection)
     /// </summary>
+    /// <param name="readerMode">Operating mode (default is "Default")</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <remarks>
+    /// ? This method has been tested and validated with physical hardware.
+    /// The response parser is fully functional.
+    /// </remarks>
     public async Task HostGoodbyeAsync(string readerMode = "Default", CancellationToken cancellationToken = default)
     {
         var parameters = new List<XmlParameter> { new("readerMode", readerMode) };
@@ -129,8 +171,9 @@ public class SiemensRf600Client : IDisposable, IAsyncDisposable
     }
 
     /// <summary>
-    /// Check if reader is present (heartbeat)
+    /// Check if reader is present and responsive (heartbeat)
     /// </summary>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
     public async Task HeartBeatAsync(CancellationToken cancellationToken = default)
     {
         await ExecuteCommandAsync("heartBeat", null, DefaultTimeout, cancellationToken);
@@ -141,16 +184,18 @@ public class SiemensRf600Client : IDisposable, IAsyncDisposable
     #region Reader Control
 
     /// <summary>
-    /// Start the reader (leave stop mode)
+    /// Start the reader (leave stop mode and begin reading tags)
     /// </summary>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
     public async Task StartReaderAsync(CancellationToken cancellationToken = default)
     {
         await ExecuteCommandAsync("startReader", new List<XmlParameter>(), DefaultTimeout, cancellationToken);
     }
 
     /// <summary>
-    /// Stop the reader (enter stop mode)
+    /// Stop the reader (enter stop mode and cease tag reading)
     /// </summary>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
     public async Task StopReaderAsync(CancellationToken cancellationToken = default)
     {
         await ExecuteCommandAsync("stopReader", new List<XmlParameter>(), DefaultTimeout, cancellationToken);
@@ -161,8 +206,17 @@ public class SiemensRf600Client : IDisposable, IAsyncDisposable
     #region Tag Inventory Operations
 
     /// <summary>
-    /// Read tag IDs from specified source
+    /// Read tag IDs from specified source antenna or antenna group
     /// </summary>
+    /// <param name="sourceName">Name of the antenna source (e.g., "Antenna1", "AntennaGroup1")</param>
+    /// <param name="durationMs">Duration in milliseconds (if unit is "Time") or number of inventory rounds (if unit is "InventoryRounds")</param>
+    /// <param name="unit">Unit type: "Time" for milliseconds or "InventoryRounds" for read cycles</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>Array of detected RFID tags</returns>
+    /// <remarks>
+    /// ? This method has been tested and validated with physical hardware.
+    /// The response parser is fully functional and correctly extracts tag IDs, RSSI, antenna names, and timestamps.
+    /// </remarks>
     public async Task<RfTag[]> ReadTagIdsAsync(string sourceName, uint durationMs, string unit = "Time", CancellationToken cancellationToken = default)
     {
         var parameters = new List<XmlParameter>
@@ -179,8 +233,13 @@ public class SiemensRf600Client : IDisposable, IAsyncDisposable
     }
 
     /// <summary>
-    /// Get observed tag IDs (with smoothing algorithm)
+    /// Get observed tag IDs using reader's smoothing algorithm to filter out transient reads
     /// </summary>
+    /// <param name="sourceName">Name of the antenna source</param>
+    /// <param name="durationMs">Duration in milliseconds or inventory rounds (default: 1000)</param>
+    /// <param name="unit">Unit type: "Time" or "InventoryRounds"</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>Array of observed RFID tags after smoothing</returns>
     public async Task<RfTag[]> GetObservedTagIdsAsync(string sourceName, uint durationMs = 1000, string unit = "Time", CancellationToken cancellationToken = default)
     {
         var parameters = new List<XmlParameter>
@@ -197,8 +256,11 @@ public class SiemensRf600Client : IDisposable, IAsyncDisposable
     }
 
     /// <summary>
-    /// Trigger source for one reading cycle
+    /// Trigger source antenna for one reading cycle
     /// </summary>
+    /// <param name="sourceName">Name of the antenna source to trigger</param>
+    /// <param name="mode">Trigger mode: "Single" for one cycle or "Continuous" for ongoing reads</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
     public async Task TriggerSourceAsync(string sourceName, string mode = "Single", CancellationToken cancellationToken = default)
     {
         var parameters = new List<XmlParameter>
@@ -215,8 +277,15 @@ public class SiemensRf600Client : IDisposable, IAsyncDisposable
     #region Tag Memory Operations
 
     /// <summary>
-    /// Write a new tag ID
+    /// Write a new EPC ID to an RFID tag
     /// </summary>
+    /// <param name="sourceName">Name of the antenna source</param>
+    /// <param name="currentTagId">Current tag ID to identify which tag to write (can be empty to write any tag)</param>
+    /// <param name="newTagId">New tag ID to write in hexadecimal format</param>
+    /// <param name="idLength">Length of the new ID in words (0 = auto-detect)</param>
+    /// <param name="password">Access password for the tag (empty if not required)</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>Array of tags that were written</returns>
     public async Task<RfTag[]> WriteTagIdAsync(string sourceName, string currentTagId, string newTagId, uint idLength = 0, string password = "", CancellationToken cancellationToken = default)
     {
         var parameters = new List<XmlParameter>();
@@ -240,8 +309,19 @@ public class SiemensRf600Client : IDisposable, IAsyncDisposable
     }
 
     /// <summary>
-    /// Read tag memory by bank, address, and length
+    /// Read tag memory from specific memory banks by bank number, address, and length
     /// </summary>
+    /// <param name="sourceName">Name of the antenna source</param>
+    /// <param name="tagId">Tag ID to read (empty to read any tag in field)</param>
+    /// <param name="password">Access password for the tag (empty if not required)</param>
+    /// <param name="tagFields">Array of memory fields specifying bank, address, and length to read</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>Array of tags with memory data populated</returns>
+    /// <remarks>
+    /// ? This method has been tested and validated with physical hardware.
+    /// The response parser is fully functional and correctly extracts data from EPC, TID, and USER memory banks.
+    /// Successfully tested with reading EPC (bank 1) and TID (bank 2) memory regions.
+    /// </remarks>
     public async Task<RfTag[]> ReadTagMemoryAsync(string sourceName, string tagId, string password, RfTagField[] tagFields, CancellationToken cancellationToken = default)
     {
         var parameters = new List<XmlParameter>
@@ -270,8 +350,14 @@ public class SiemensRf600Client : IDisposable, IAsyncDisposable
     }
 
     /// <summary>
-    /// Write tag memory by bank, address, and data
+    /// Write data to tag memory at specific memory banks by bank number, address, and data
     /// </summary>
+    /// <param name="sourceName">Name of the antenna source</param>
+    /// <param name="tagId">Tag ID to write (empty to write any tag in field)</param>
+    /// <param name="password">Access password for the tag (empty if not required)</param>
+    /// <param name="tagFields">Array of memory fields specifying bank, address, length, and data to write</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>Array of tags that were written</returns>
     public async Task<RfTag[]> WriteTagMemoryAsync(string sourceName, string tagId, string password, RfTagField[] tagFields, CancellationToken cancellationToken = default)
     {
         var parameters = new List<XmlParameter>
@@ -301,8 +387,14 @@ public class SiemensRf600Client : IDisposable, IAsyncDisposable
     }
 
     /// <summary>
-    /// Read tag field by name
+    /// Read tag field by predefined field name (requires reader configuration with field definitions)
     /// </summary>
+    /// <param name="sourceName">Name of the antenna source</param>
+    /// <param name="tagId">Tag ID to read (empty to read any tag in field)</param>
+    /// <param name="password">Access password for the tag (empty if not required)</param>
+    /// <param name="fieldNames">Array of field names to read (must be defined in reader configuration)</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>Array of tags with field data populated</returns>
     public async Task<RfTag[]> ReadTagFieldAsync(string sourceName, string tagId, string password, string[] fieldNames, CancellationToken cancellationToken = default)
     {
         var parameters = new List<XmlParameter>
@@ -327,8 +419,14 @@ public class SiemensRf600Client : IDisposable, IAsyncDisposable
     }
 
     /// <summary>
-    /// Write tag field by name
+    /// Write tag field by predefined field name (requires reader configuration with field definitions)
     /// </summary>
+    /// <param name="sourceName">Name of the antenna source</param>
+    /// <param name="tagId">Tag ID to write (empty to write any tag in field)</param>
+    /// <param name="password">Access password for the tag (empty if not required)</param>
+    /// <param name="fieldData">Dictionary of field names and data values to write</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>Array of tags that were written</returns>
     public async Task<RfTag[]> WriteTagFieldAsync(string sourceName, string tagId, string password, Dictionary<string, string> fieldData, CancellationToken cancellationToken = default)
     {
         var parameters = new List<XmlParameter>
@@ -358,8 +456,14 @@ public class SiemensRf600Client : IDisposable, IAsyncDisposable
     #region Tag Security Operations
 
     /// <summary>
-    /// Kill a tag (permanent operation)
+    /// Kill a tag permanently (irreversible operation - tag will become non-responsive)
     /// </summary>
+    /// <param name="sourceName">Name of the antenna source</param>
+    /// <param name="tagId">Tag ID to kill</param>
+    /// <param name="killPassword">32-bit kill password in hexadecimal format</param>
+    /// <param name="recommissioningFlags">Optional recommissioning flags for special tag types</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>Array containing the killed tag information</returns>
     public async Task<RfTag[]> KillTagAsync(string sourceName, string tagId, string killPassword, string? recommissioningFlags = null, CancellationToken cancellationToken = default)
     {
         var parameters = new List<XmlParameter>();
@@ -380,8 +484,15 @@ public class SiemensRf600Client : IDisposable, IAsyncDisposable
     }
 
     /// <summary>
-    /// Lock tag bank
+    /// Lock or unlock tag memory banks to prevent or allow modifications
     /// </summary>
+    /// <param name="sourceName">Name of the antenna source</param>
+    /// <param name="tagId">Tag ID to lock</param>
+    /// <param name="action">Lock action bitmap (20-bit value defining lock state for each memory bank)</param>
+    /// <param name="mask">Lock mask bitmap (20-bit value defining which banks to modify)</param>
+    /// <param name="password">Access password for the tag</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>Array containing the locked tag information</returns>
     public async Task<RfTag[]> LockTagBankAsync(string sourceName, string tagId, uint action, uint mask, string password, CancellationToken cancellationToken = default)
     {
         var parameters = new List<XmlParameter>();
@@ -405,8 +516,11 @@ public class SiemensRf600Client : IDisposable, IAsyncDisposable
     #region Configuration Operations
 
     /// <summary>
-    /// Set configuration from file content
+    /// Set complete reader configuration from XML content
     /// </summary>
+    /// <param name="configXmlContent">XML configuration content (will be wrapped in CDATA section)</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>Configuration ID after successful configuration</returns>
     public async Task<RfConfigId> SetConfigurationAsync(string configXmlContent, CancellationToken cancellationToken = default)
     {
         var parameters = new List<XmlParameter>
@@ -421,8 +535,10 @@ public class SiemensRf600Client : IDisposable, IAsyncDisposable
     }
 
     /// <summary>
-    /// Get current configuration
+    /// Get current reader configuration as XML
     /// </summary>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>Configuration ID and complete XML configuration</returns>
     public async Task<RfConfigId> GetConfigurationAsync(CancellationToken cancellationToken = default)
     {
         var reply = await ExecuteCommandAsync("getConfiguration", null, LongTimeout, cancellationToken);
@@ -434,8 +550,10 @@ public class SiemensRf600Client : IDisposable, IAsyncDisposable
     }
 
     /// <summary>
-    /// Get configuration version
+    /// Get configuration version and type information
     /// </summary>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>Configuration ID and type</returns>
     public async Task<RfConfigId> GetConfigVersionAsync(CancellationToken cancellationToken = default)
     {
         var reply = await ExecuteCommandAsync("getConfigVersion", null, DefaultTimeout, cancellationToken);
@@ -447,8 +565,10 @@ public class SiemensRf600Client : IDisposable, IAsyncDisposable
     }
 
     /// <summary>
-    /// Get active configuration
+    /// Get currently active reader configuration as XML
     /// </summary>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>Configuration ID and active XML configuration</returns>
     public async Task<RfConfigId> GetActiveConfigurationAsync(CancellationToken cancellationToken = default)
     {
         var reply = await ExecuteCommandAsync("getActiveConfiguration", null, LongTimeout, cancellationToken);
@@ -464,8 +584,13 @@ public class SiemensRf600Client : IDisposable, IAsyncDisposable
     #region Parameter Operations
 
     /// <summary>
-    /// Set a single parameter
+    /// Set a single configuration parameter on the reader
     /// </summary>
+    /// <param name="name">Parameter name</param>
+    /// <param name="value">Parameter value</param>
+    /// <param name="objType">Optional object type (e.g., "antenna", "source")</param>
+    /// <param name="objName">Optional object name (e.g., "Antenna1")</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
     public async Task SetParameterAsync(string name, string value, string? objType = null, string? objName = null, CancellationToken cancellationToken = default)
     {
         var parameters = new List<XmlParameter>
@@ -484,8 +609,13 @@ public class SiemensRf600Client : IDisposable, IAsyncDisposable
     }
 
     /// <summary>
-    /// Get a single parameter
+    /// Get a single configuration parameter from the reader
     /// </summary>
+    /// <param name="name">Parameter name</param>
+    /// <param name="objType">Optional object type (e.g., "antenna", "source")</param>
+    /// <param name="objName">Optional object name (e.g., "Antenna1")</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>Parameter value as string</returns>
     public async Task<string> GetParameterAsync(string name, string? objType = null, string? objName = null, CancellationToken cancellationToken = default)
     {
         var parameters = new List<XmlParameter> { new("name", name) };
@@ -505,8 +635,11 @@ public class SiemensRf600Client : IDisposable, IAsyncDisposable
     #region Antenna Configuration
 
     /// <summary>
-    /// Set antenna configuration
+    /// Set antenna configuration parameters
     /// </summary>
+    /// <param name="antennaName">Name of the antenna to configure</param>
+    /// <param name="parameters">Dictionary of parameter names and values (e.g., transmitPower, receiveSensitivity)</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
     public async Task SetAntennaConfigAsync(string antennaName, Dictionary<string, string> parameters, CancellationToken cancellationToken = default)
     {
         var xmlParams = new List<XmlParameter>
@@ -525,8 +658,10 @@ public class SiemensRf600Client : IDisposable, IAsyncDisposable
     }
 
     /// <summary>
-    /// Get antenna configuration
+    /// Get configuration for all antennas
     /// </summary>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>Dictionary mapping antenna names to their configuration parameters</returns>
     public async Task<Dictionary<string, Dictionary<string, string>>> GetAntennaConfigAsync(CancellationToken cancellationToken = default)
     {
         var reply = await ExecuteCommandAsync("getAntennaConfig", null, DefaultTimeout, cancellationToken);
@@ -568,8 +703,15 @@ public class SiemensRf600Client : IDisposable, IAsyncDisposable
     #region Protocol Configuration
 
     /// <summary>
-    /// Set protocol configuration
+    /// Set RFID protocol configuration (EPC Gen2 parameters)
     /// </summary>
+    /// <param name="initialQ">Initial Q value for tag population estimation (0-15)</param>
+    /// <param name="profile">Link profile: 0=dense reader mode, 1=normal, 2=dense tag environment</param>
+    /// <param name="channels">Frequency channels to use (e.g., "1-4" for channels 1 through 4)</param>
+    /// <param name="retry">Number of retries for failed operations</param>
+    /// <param name="idLength">Expected EPC ID length in words (0=variable)</param>
+    /// <param name="writeBoost">Write power boost: 0=off, 1=on</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
     public async Task SetProtocolConfigAsync(uint initialQ, uint profile, string channels, uint retry, uint idLength, uint writeBoost, CancellationToken cancellationToken = default)
     {
         var parameters = new List<XmlParameter>
@@ -586,8 +728,10 @@ public class SiemensRf600Client : IDisposable, IAsyncDisposable
     }
 
     /// <summary>
-    /// Get protocol configuration
+    /// Get current RFID protocol configuration
     /// </summary>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>Dictionary of protocol configuration parameters and values</returns>
     public async Task<Dictionary<string, string>> GetProtocolConfigAsync(CancellationToken cancellationToken = default)
     {
         var reply = await ExecuteCommandAsync("getProtocolConfig", null, DefaultTimeout, cancellationToken);
@@ -599,8 +743,13 @@ public class SiemensRf600Client : IDisposable, IAsyncDisposable
     #region Network Configuration
 
     /// <summary>
-    /// Set IP configuration
+    /// Set network IP configuration (requires reader restart to take effect)
     /// </summary>
+    /// <param name="ipAddress">Static IP address (e.g., "192.168.1.100")</param>
+    /// <param name="subnetMask">Subnet mask (e.g., "255.255.255.0")</param>
+    /// <param name="gateway">Default gateway (e.g., "192.168.1.1")</param>
+    /// <param name="dhcpEnabled">Enable DHCP (if true, static IP settings are ignored)</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
     public async Task SetIpConfigAsync(string? ipAddress = null, string? subnetMask = null, string? gateway = null, bool? dhcpEnabled = null, CancellationToken cancellationToken = default)
     {
         var parameters = new List<XmlParameter>();
@@ -625,8 +774,10 @@ public class SiemensRf600Client : IDisposable, IAsyncDisposable
     }
 
     /// <summary>
-    /// Get IP configuration
+    /// Get current network IP configuration
     /// </summary>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>IP configuration including address, subnet mask, gateway, and DHCP status</returns>
     public async Task<RfIpConfig> GetIpConfigAsync(CancellationToken cancellationToken = default)
     {
         var reply = await ExecuteCommandAsync("getIPConfig", null, DefaultTimeout, cancellationToken);
@@ -659,8 +810,10 @@ public class SiemensRf600Client : IDisposable, IAsyncDisposable
     #region Status Operations
 
     /// <summary>
-    /// Get reader status
+    /// Get current reader operational status
     /// </summary>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>Dictionary of status parameters and values</returns>
     public async Task<Dictionary<string, string>> GetReaderStatusAsync(CancellationToken cancellationToken = default)
     {
         var reply = await ExecuteCommandAsync("getReaderStatus", null, DefaultTimeout, cancellationToken);
@@ -668,8 +821,10 @@ public class SiemensRf600Client : IDisposable, IAsyncDisposable
     }
 
     /// <summary>
-    /// Get device status
+    /// Get device information and firmware version
     /// </summary>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>Dictionary of device information including firmware version, hardware revision, etc.</returns>
     public async Task<Dictionary<string, string>> GetDeviceStatusAsync(CancellationToken cancellationToken = default)
     {
         var reply = await ExecuteCommandAsync("getDeviceStatus", null, DefaultTimeout, cancellationToken);
@@ -692,8 +847,13 @@ public class SiemensRf600Client : IDisposable, IAsyncDisposable
     }
 
     /// <summary>
-    /// Get tag status
+    /// Get detailed status information about tags in the field
     /// </summary>
+    /// <param name="sourceName">Name of the antenna source</param>
+    /// <param name="mode">Status mode (e.g., "All", "Visible")</param>
+    /// <param name="tagId">Optional specific tag ID to query</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>Dictionary of tag status parameters</returns>
     public async Task<Dictionary<string, string>> GetTagStatusAsync(string sourceName, string? mode = null, string? tagId = null, CancellationToken cancellationToken = default)
     {
         var parameters = new List<XmlParameter> { new("sourceName", sourceName) };
@@ -728,8 +888,10 @@ public class SiemensRf600Client : IDisposable, IAsyncDisposable
     #region I/O Operations
 
     /// <summary>
-    /// Set output ports
+    /// Set digital output ports state
     /// </summary>
+    /// <param name="outPortValue">Output value as binary string (e.g., "1010" for 4 ports)</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
     public async Task SetIoAsync(string outPortValue, CancellationToken cancellationToken = default)
     {
         var parameters = new List<XmlParameter> { new("outValue", outPortValue) };
@@ -737,8 +899,10 @@ public class SiemensRf600Client : IDisposable, IAsyncDisposable
     }
 
     /// <summary>
-    /// Get I/O port status
+    /// Get current state of digital input and output ports
     /// </summary>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>I/O port status with input and output values</returns>
     public async Task<RfIoPort> GetIoAsync(CancellationToken cancellationToken = default)
     {
         var reply = await ExecuteCommandAsync("getIO", null, DefaultTimeout, cancellationToken);
@@ -760,8 +924,10 @@ public class SiemensRf600Client : IDisposable, IAsyncDisposable
     #region Time Operations
 
     /// <summary>
-    /// Set reader time
+    /// Set reader's system time
     /// </summary>
+    /// <param name="utcTime">UTC time to set on the reader</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
     public async Task SetTimeAsync(DateTime utcTime, CancellationToken cancellationToken = default)
     {
         var timeStr = utcTime.ToString("yyyy-MM-ddTHH:mm:ss.fff+00:00");
@@ -770,8 +936,10 @@ public class SiemensRf600Client : IDisposable, IAsyncDisposable
     }
 
     /// <summary>
-    /// Get reader time
+    /// Get reader's current system time
     /// </summary>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>Current UTC time from the reader</returns>
     public async Task<DateTime> GetTimeAsync(CancellationToken cancellationToken = default)
     {
         var reply = await ExecuteCommandAsync("getTime", null, DefaultTimeout, cancellationToken);
@@ -784,8 +952,12 @@ public class SiemensRf600Client : IDisposable, IAsyncDisposable
     #region Blacklist Operations
 
     /// <summary>
-    /// Edit blacklist (ADD, DEL, CLEAR)
+    /// Edit the blacklist (tags to ignore during reads)
     /// </summary>
+    /// <param name="sourceName">Name of the antenna source</param>
+    /// <param name="command">Blacklist command: "ADD" to add tags, "DEL" to remove tags, "CLEAR" to clear all</param>
+    /// <param name="tagIds">Array of tag IDs to add or remove (not needed for "CLEAR" command)</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
     public async Task EditBlacklistAsync(string sourceName, string command, string[]? tagIds = null, CancellationToken cancellationToken = default)
     {
         var parameters = new List<XmlParameter>
@@ -806,8 +978,11 @@ public class SiemensRf600Client : IDisposable, IAsyncDisposable
     }
 
     /// <summary>
-    /// Get blacklist
+    /// Get all tags currently in the blacklist
     /// </summary>
+    /// <param name="sourceName">Name of the antenna source</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>Array of blacklisted tag IDs</returns>
     public async Task<RfTag[]> GetBlacklistAsync(string sourceName, CancellationToken cancellationToken = default)
     {
         var parameters = new List<XmlParameter> { new("sourceName", sourceName) };
@@ -820,8 +995,10 @@ public class SiemensRf600Client : IDisposable, IAsyncDisposable
     #region Source Operations
 
     /// <summary>
-    /// Get all available sources
+    /// Get list of all available antenna sources configured on the reader
     /// </summary>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>Array of source names (antennas and antenna groups)</returns>
     public async Task<string[]> GetAllSourcesAsync(CancellationToken cancellationToken = default)
     {
         var reply = await ExecuteCommandAsync("getAllSources", null, DefaultTimeout, cancellationToken);
@@ -829,8 +1006,10 @@ public class SiemensRf600Client : IDisposable, IAsyncDisposable
     }
 
     /// <summary>
-    /// Stop current command execution
+    /// Stop currently executing command on a source
     /// </summary>
+    /// <param name="sourceName">Name of the antenna source</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
     public async Task StopCommandAsync(string sourceName, CancellationToken cancellationToken = default)
     {
         var parameters = new List<XmlParameter> { new("sourceName", sourceName) };
@@ -842,8 +1021,10 @@ public class SiemensRf600Client : IDisposable, IAsyncDisposable
     #region System Operations
 
     /// <summary>
-    /// Reset reader
+    /// Reset the reader
     /// </summary>
+    /// <param name="resetType">Reset type: "SW" for software reset, "HW" for hardware reset</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
     public async Task ResetReaderAsync(string resetType = "SW", CancellationToken cancellationToken = default)
     {
         var parameters = new List<XmlParameter> { new("resetType", resetType) };
@@ -919,17 +1100,17 @@ public class SiemensRf600Client : IDisposable, IAsyncDisposable
     #region Diagnostic Methods
 
     /// <summary>
-    /// Get the last sent XML command (for debugging)
+    /// Get the last sent XML command (for debugging purposes)
     /// </summary>
     public string LastSentCommand { get; private set; } = string.Empty;
 
     /// <summary>
-    /// Get the last received XML response (for debugging)
+    /// Get the last received XML response (for debugging purposes)
     /// </summary>
     public string LastReceivedResponse { get; private set; } = string.Empty;
 
     /// <summary>
-    /// Enable/disable diagnostic logging
+    /// Enable or disable diagnostic logging to console
     /// </summary>
     public bool EnableDiagnostics { get; set; } = false;
 
@@ -1398,6 +1579,9 @@ public class SiemensRf600Client : IDisposable, IAsyncDisposable
 
     #region IDisposable
 
+    /// <summary>
+    /// Disposes the client and releases all resources synchronously
+    /// </summary>
     public void Dispose()
     {
         DisconnectAsync().GetAwaiter().GetResult();
@@ -1406,6 +1590,10 @@ public class SiemensRf600Client : IDisposable, IAsyncDisposable
         _receiveCts.Dispose();
     }
 
+    /// <summary>
+    /// Asynchronously disposes the client and releases all resources
+    /// </summary>
+    /// <returns>A task representing the asynchronous dispose operation</returns>
     public async ValueTask DisposeAsync()
     {
         await DisconnectAsync();
@@ -1419,22 +1607,70 @@ public class SiemensRf600Client : IDisposable, IAsyncDisposable
 
 #region Supporting Types
 
+/// <summary>
+/// Represents an XML parameter for RFID reader commands
+/// </summary>
+/// <param name="Key">Parameter name or XML element name</param>
+/// <param name="Value">Parameter value (empty for container elements)</param>
+/// <param name="IsContainer">Indicates if this is a container element that holds child elements</param>
+/// <param name="IsEmpty">Indicates if this container is empty (no children)</param>
+/// <param name="IsLastChild">Indicates if this is the last child in a container (used for XML parsing)</param>
 public record XmlParameter(string Key, string Value = "", bool IsContainer = false, bool IsEmpty = false, bool IsLastChild = false);
 
+/// <summary>
+/// Internal class representing a command reply from the RFID reader
+/// </summary>
 public class CommandReply
 {
+    /// <summary>
+    /// Gets or sets the command identifier that this reply corresponds to
+    /// </summary>
     public string CommandID { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the result code (0 = success, non-zero = error)
+    /// </summary>
     public int ResultCode { get; set; }
+
+    /// <summary>
+    /// Gets or sets the error message if result code is non-zero
+    /// </summary>
     public string Error { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the error cause description
+    /// </summary>
     public string Cause { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the list of parameters returned in the reply
+    /// </summary>
     public List<XmlParameter> Parameters { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets the array of tag data if tags were returned
+    /// </summary>
     public RfTag[]? TagData { get; set; }
 }
 
+/// <summary>
+/// Represents an RFID tag with its ID, data, and associated metadata
+/// </summary>
 public class RfTag
 {
+    /// <summary>
+    /// Gets or sets the tag's EPC (Electronic Product Code) identifier in hexadecimal format
+    /// </summary>
     public string TagId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the primary data associated with the tag
+    /// </summary>
     public string Data { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets additional fields and metadata (RSSI, antenna, timestamp, memory banks, etc.)
+    /// </summary>
     public Dictionary<string, string> Fields { get; set; } = new();
 }
 
@@ -1471,33 +1707,95 @@ public class RfTagField
     public string Data { get; set; } = string.Empty;
 }
 
+/// <summary>
+/// Represents reader configuration identification and data
+/// </summary>
 public class RfConfigId
 {
+    /// <summary>
+    /// Gets or sets the protocol version
+    /// </summary>
     public string Version { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the configuration identifier (hash/checksum of configuration)
+    /// </summary>
     public string ConfigID { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the configuration type (e.g., "XML", "Binary")
+    /// </summary>
     public string ConfigType { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the complete configuration data as XML string
+    /// </summary>
     public string Configuration { get; set; } = string.Empty;
 }
 
+/// <summary>
+/// Represents network IP configuration for the RFID reader
+/// </summary>
 public class RfIpConfig
 {
+    /// <summary>
+    /// Gets or sets the IP address
+    /// </summary>
     public string IpAddress { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the subnet mask
+    /// </summary>
     public string SubnetMask { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the default gateway
+    /// </summary>
     public string Gateway { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets whether DHCP is enabled
+    /// </summary>
     public bool DhcpEnabled { get; set; }
 }
 
+/// <summary>
+/// Represents digital I/O port states on the RFID reader
+/// </summary>
 public class RfIoPort
 {
+    /// <summary>
+    /// Gets or sets the input port values as binary string (e.g., "1010" for 4 input ports)
+    /// </summary>
     public string InValue { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the output port values as binary string (e.g., "1010" for 4 output ports)
+    /// </summary>
     public string OutValue { get; set; } = string.Empty;
 }
 
+/// <summary>
+/// Exception thrown when an RFID reader returns an error
+/// </summary>
 public class RfReaderException : Exception
 {
+    /// <summary>
+    /// Gets the error result code from the reader
+    /// </summary>
     public int ResultCode { get; }
+
+    /// <summary>
+    /// Gets the error cause description
+    /// </summary>
     public string Cause { get; }
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="RfReaderException"/> class
+    /// </summary>
+    /// <param name="resultCode">Error result code</param>
+    /// <param name="error">Error message</param>
+    /// <param name="cause">Error cause description</param>
     public RfReaderException(int resultCode, string error, string cause)
         : base($"RFID Error {resultCode}: {error} - {cause}")
     {

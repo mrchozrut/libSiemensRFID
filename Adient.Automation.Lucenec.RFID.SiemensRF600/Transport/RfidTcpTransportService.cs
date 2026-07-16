@@ -23,13 +23,35 @@ public sealed class RfidTcpTransportService : IRfidTransportService
     private bool _isConnected;
     private int _sessionId;
 
+    /// <summary>
+    /// Gets a value indicating whether the transport is currently connected to the RFID reader
+    /// </summary>
     public bool IsConnected => _isConnected;
+
+    /// <summary>
+    /// Gets or sets the default timeout for command operations
+    /// </summary>
     public TimeSpan DefaultTimeout { get; set; } = TimeSpan.FromSeconds(5);
 
+    /// <summary>
+    /// Occurs when an asynchronous message is received from the reader
+    /// </summary>
     public event EventHandler<AsyncMessageReceivedEventArgs>? AsyncMessageReceived;
+
+    /// <summary>
+    /// Occurs when the connection state changes
+    /// </summary>
     public event EventHandler<ConnectionStateChangedEventArgs>? ConnectionStateChanged;
+
+    /// <summary>
+    /// Occurs when diagnostic information is available
+    /// </summary>
     public event EventHandler<DiagnosticEventArgs>? DiagnosticEvent;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="RfidTcpTransportService"/> class
+    /// </summary>
+    /// <param name="logger">Optional logger for diagnostic output</param>
     public RfidTcpTransportService(ILogger<RfidTcpTransportService>? logger = null)
     {
         _logger = logger;
@@ -37,6 +59,14 @@ public sealed class RfidTcpTransportService : IRfidTransportService
 
     #region Connection Management
 
+    /// <summary>
+    /// Connect to the RFID reader using TCP/IP
+    /// </summary>
+    /// <param name="configuration">Transport configuration settings</param>
+    /// <param name="cancellationToken">Token to cancel the connection operation</param>
+    /// <exception cref="ArgumentNullException">Thrown when configuration is null</exception>
+    /// <exception cref="RfidTransportException">Thrown when connection fails</exception>
+    /// <exception cref="TimeoutException">Thrown when connection times out</exception>
     public async Task ConnectAsync(TransportConfiguration configuration, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(configuration);
@@ -97,6 +127,10 @@ public sealed class RfidTcpTransportService : IRfidTransportService
         }
     }
 
+    /// <summary>
+    /// Disconnect from the RFID reader and clean up resources
+    /// </summary>
+    /// <param name="cancellationToken">Token to cancel the disconnection operation</param>
     public async Task DisconnectAsync(CancellationToken cancellationToken = default)
     {
         await _connectionLock.WaitAsync(cancellationToken);
@@ -141,6 +175,18 @@ public sealed class RfidTcpTransportService : IRfidTransportService
 
     #region Command Execution
 
+    /// <summary>
+    /// Send a command and wait for response from the RFID reader
+    /// </summary>
+    /// <param name="xmlCommand">XML command to send</param>
+    /// <param name="commandId">Unique command identifier</param>
+    /// <param name="timeout">Optional timeout (uses DefaultTimeout if not specified)</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>XML response from the reader</returns>
+    /// <exception cref="ArgumentException">Thrown when xmlCommand or commandId is null or empty</exception>
+    /// <exception cref="InvalidOperationException">Thrown when not connected</exception>
+    /// <exception cref="RfidTransportException">Thrown when command limit is reached or command is already pending</exception>
+    /// <exception cref="TimeoutException">Thrown when command times out</exception>
     public async Task<string> SendCommandAsync(string xmlCommand, string commandId, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(xmlCommand);
@@ -188,6 +234,13 @@ public sealed class RfidTcpTransportService : IRfidTransportService
         }
     }
 
+    /// <summary>
+    /// Send a command without waiting for response (fire-and-forget)
+    /// </summary>
+    /// <param name="xmlCommand">XML command to send</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <exception cref="ArgumentException">Thrown when xmlCommand is null or empty</exception>
+    /// <exception cref="InvalidOperationException">Thrown when not connected</exception>
     public async Task SendCommandAsync(string xmlCommand, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(xmlCommand);
@@ -199,6 +252,10 @@ public sealed class RfidTcpTransportService : IRfidTransportService
         LogDiagnostic("Fire-and-forget command sent", null, xmlCommand);
     }
 
+    /// <summary>
+    /// Cancel all pending commands waiting for responses
+    /// </summary>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
     public async Task CancelPendingCommandsAsync(CancellationToken cancellationToken = default)
     {
         _logger?.LogInformation("Cancelling {Count} pending commands", _pendingCommands.Count);
@@ -426,6 +483,10 @@ public sealed class RfidTcpTransportService : IRfidTransportService
         _tcpClient = null;
     }
 
+    /// <summary>
+    /// Asynchronously disposes the transport service and releases all resources
+    /// </summary>
+    /// <returns>A task representing the asynchronous dispose operation</returns>
     public async ValueTask DisposeAsync()
     {
         await DisconnectAsync();

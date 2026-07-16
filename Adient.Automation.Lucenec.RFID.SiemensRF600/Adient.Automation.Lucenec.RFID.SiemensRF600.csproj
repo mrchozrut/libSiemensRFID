@@ -1,21 +1,40 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-	<TargetFramework>net8.0</TargetFramework>
-	<ImplicitUsings>enable</ImplicitUsings>
-	<Nullable>enable</Nullable>
-	<RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
-	<IsPackable>true</IsPackable>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <IsPackable>true</IsPackable>
 
-	  <PackageId>Adient.Automation.Lucenec.RFID.SiemensRF600</PackageId>
-	  <Version>1.0.0</Version>
-	  <Authors>Adient Lucenec OT</Authors>
-	  <Description>
-		  Siemens RF600/RF680R RFID library for .NET 8
-	  </Description>
-	  <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
-
+    <!-- Package Metadata -->
+    <PackageId>Adient.Automation.Lucenec.RFID.SiemensRF600</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>Adient Lucenec OT</Authors>
+    <Company>Adient</Company>
+    <Description>Siemens RF600/RF680R RFID library for .NET 8</Description>
+    <Copyright>Copyright © Adient 2024-2026</Copyright>
+    <PackageProjectUrl>https://adient.visualstudio.com/Lucenec_0798_OT/_git/libSiemensRFID</PackageProjectUrl>
+    <RepositoryUrl>https://adient.visualstudio.com/Lucenec_0798_OT/_git/libSiemensRFID</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    
+    <!-- CRITICAL: Generate XML documentation for IntelliSense -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <DocumentationFile>bin\$(Configuration)\$(TargetFramework)\$(AssemblyName).xml</DocumentationFile>
+    
+    <!-- Ensure symbols are embedded for better debugging -->
+    <DebugType>embedded</DebugType>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
   </PropertyGroup>
+
+  <!-- Include README in package -->
+  <ItemGroup>
+    <None Include="..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.9" />
